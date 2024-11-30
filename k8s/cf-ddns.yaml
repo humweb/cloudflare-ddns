@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cf-ddns
+  namespace: ddns
+spec:
+  selector:
+    matchLabels:
+      app: cf-ddns
+
+  template:
+    metadata:
+      labels:
+        app: cf-ddns
+
+    spec:
+      containers:
+        - name: cf-ddns
+          image: ryun/cloudflare-ddns:latest
+          resources:
+            limits:
+              memory: '32Mi'
+              cpu: '50m'
+          env:
+            - name: DDNS_CONFIG_PATH
+              value: '/etc/cf-ddns'
+          volumeMounts:
+            - mountPath: '/etc/cf-ddns'
+              name: config-cf-ddns
+              readOnly: true
+      volumes:
+        - name: config-cf-ddns
+          secret:
+            secretName: config-cf-ddns
