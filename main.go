@@ -83,7 +83,7 @@ func (d *CfDDns) OverrideClient(client *Client) {
 	d.api = client
 }
 
-func (d *CfDDns) LoadConfig() {
+func (d *CfDDns) LoadConfig() *CfDDns {
 
 	configData, err := os.ReadFile(d.configPath + "/config.json")
 	if err != nil {
@@ -101,6 +101,7 @@ func (d *CfDDns) LoadConfig() {
 		d.config.Ttl = defaultTTL
 		fmt.Sprintf("⚙️ TTL is too low or missing - defaulting to %d (auto)", defaultTTL)
 	}
+	return d
 }
 
 func (d *CfDDns) FetchIP() string {
@@ -185,8 +186,8 @@ func (d *CfDDns) GetExistingRecords() *DnsRecords {
 }
 func (d *CfDDns) Run(ip string) bool {
 
-	response := d.GetZone()
-	if response == nil {
+	zone := d.GetZone()
+	if zone == nil {
 		return false
 	}
 
@@ -199,9 +200,9 @@ func (d *CfDDns) Run(ip string) bool {
 
 		name := strings.TrimSpace(strings.ToLower(subdomain.Name))
 
-		fqdn := response.Result.Name
+		fqdn := zone.Result.Name
 		if name != "" && name != "@" {
-			fqdn = name + "." + response.Result.Name
+			fqdn = name + "." + zone.Result.Name
 		}
 
 		record := DnsPayload{
@@ -214,7 +215,7 @@ func (d *CfDDns) Run(ip string) bool {
 
 		var identifier string
 		var modified bool
-		duplicateIds := []string{}
+		var duplicateIds []string
 
 		if dnsRecordsResponse.Result != nil {
 			for _, r := range dnsRecordsResponse.Result {
@@ -288,8 +289,7 @@ func (d *CfDDns) GetZone() *ZoneResult {
 
 func main() {
 
-	ddns := NewCfDDns()
-	ddns.LoadConfig()
+	ddns := NewCfDDns().LoadConfig()
 	gracefulExit := NewGracefulExit()
 
 	if len(os.Args) > 1 && os.Args[1] == "--repeat" {
