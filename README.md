@@ -1,4 +1,4 @@
-# Cloudflare DDns
+# Cloudflare DDNS
 Add and update your cloudflare records with your dynamic ip.
 
 ### Generate secret
