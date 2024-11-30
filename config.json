@@ -1,0 +1,16 @@
+{
+  "api_token": "",
+  "zone_id": "",
+  "subdomains": [
+    {
+      "name": "git",
+      "proxied": true
+    },
+    {
+      "name": "cd",
+      "proxied": true
+    }
+  ],
+  "purgeUnknownRecords": false,
+  "ttl": 3600
+}
