@@ -18,6 +18,10 @@ type CfDDns struct {
 	api        *Client
 }
 
+func (d *CfDDns) Config() *Config {
+	return d.config
+}
+
 // NewCfDDns init new ddns service
 func NewCfDDns() *CfDDns {
 	configPath = os.Getenv(configPathEnv)
@@ -140,8 +144,13 @@ func (d *CfDDns) GetExistingRecords() *DnsRecords {
 	return &dnsRecordsResponse
 }
 
-// findMatchingRecords find matching records
-func (d *CfDDns) findMatchingRecords(fqdn, ip string, record DnsPayload, results []DnsResult) (identifier string, modified bool, duplicateIds []string) {
+// FindMatchingRecords find matching records
+func (d *CfDDns) FindMatchingRecords(fqdn, ip string, record DnsPayload, results []DnsResult) (string, bool, []string) {
+	var (
+		identifier   string
+		modified     bool
+		duplicateIds []string
+	)
 	for _, r := range results {
 		if r.Name == fqdn {
 			if identifier != "" {
@@ -153,13 +162,13 @@ func (d *CfDDns) findMatchingRecords(fqdn, ip string, record DnsPayload, results
 				}
 			} else {
 				identifier = r.Id
-				if r.Content != record.Content || r.Proxied != record.Proxied {
+				if r.Content != record.Content || r.Ttl != record.Ttl || r.Proxied != record.Proxied {
 					modified = true
 				}
 			}
 		}
 	}
-	return
+	return identifier, modified, duplicateIds
 }
 
 // addRecord add a new record
@@ -187,8 +196,8 @@ func (d *CfDDns) deleteStaleRecords(duplicateIds []string) {
 	}
 }
 
-// getFullDomain get fully qualified domain name
-func (d *CfDDns) getFullDomain(subdomain string, zone *ZoneResult) string {
+// GetFullDomain get fully qualified domain name
+func (d *CfDDns) GetFullDomain(subdomain string, zone *ZoneResult) string {
 	name := strings.TrimSpace(strings.ToLower(subdomain))
 
 	fqdn := zone.Result.Name
@@ -217,7 +226,8 @@ func (d *CfDDns) GetZone() *ZoneResult {
 	return &response
 }
 
-func (d *CfDDns) Run(ip string) bool {
+func (d *CfDDns) Run() bool {
+	ip := d.FetchIP()
 	zone := d.GetZone()
 	if zone == nil {
 		fmt.Println("❌ Zone not found.")
@@ -231,7 +241,7 @@ func (d *CfDDns) Run(ip string) bool {
 	}
 
 	for _, subdomain := range d.config.Subdomains {
-		fqdn := d.getFullDomain(subdomain.Name, zone)
+		fqdn := d.GetFullDomain(subdomain.Name, zone)
 
 		record := DnsPayload{
 			Type:    "A",
@@ -241,7 +251,7 @@ func (d *CfDDns) Run(ip string) bool {
 			Ttl:     d.config.Ttl,
 		}
 
-		identifier, modified, duplicateIds := d.findMatchingRecords(fqdn, ip, record, dnsRecordsResponse.Result)
+		identifier, modified, duplicateIds := d.FindMatchingRecords(fqdn, ip, record, dnsRecordsResponse.Result)
 
 		// Handle record addition or update
 		if identifier == "" {

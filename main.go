@@ -45,7 +45,7 @@ func main() {
 		for {
 			select {
 			case <-ticker.C:
-				ddns.Run(ddns.FetchIP())
+				ddns.Run()
 			case <-gracefulExit.stop:
 				ticker.Stop()
 				fmt.Println("Stopped Cloudflare DDNS updater.")
@@ -53,6 +53,6 @@ func main() {
 			}
 		}
 	} else {
-		ddns.Run(ddns.FetchIP())
+		ddns.Run()
 	}
 }
