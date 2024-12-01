@@ -145,30 +145,25 @@ func (d *CfDDns) GetExistingRecords() *DnsRecords {
 }
 
 // FindMatchingRecords find matching records
-func (d *CfDDns) FindMatchingRecords(fqdn, ip string, record DnsPayload, results []DnsResult) (string, bool, []string) {
+func (d *CfDDns) FindMatchingRecords(fqdn, ip string, record DnsPayload, results []DnsResult) (string, bool) {
 	var (
-		identifier   string
-		modified     bool
-		duplicateIds []string
+		identifier string
+		modified   bool
 	)
 	for _, r := range results {
 		if r.Name == fqdn {
-			if identifier != "" {
-				if r.Content == ip {
-					duplicateIds = append(duplicateIds, identifier)
-					identifier = r.Id
-				} else {
-					duplicateIds = append(duplicateIds, r.Id)
-				}
-			} else {
+			if identifier == "" {
 				identifier = r.Id
 				if r.Content != record.Content || r.Ttl != record.Ttl || r.Proxied != record.Proxied {
 					modified = true
 				}
+
+			} else if r.Content == ip {
+				identifier = r.Id
 			}
 		}
 	}
-	return identifier, modified, duplicateIds
+	return identifier, modified
 }
 
 // addRecord add a new record
@@ -251,7 +246,7 @@ func (d *CfDDns) Run() bool {
 			Ttl:     d.config.Ttl,
 		}
 
-		identifier, modified, duplicateIds := d.FindMatchingRecords(fqdn, ip, record, dnsRecordsResponse.Result)
+		identifier, modified := d.FindMatchingRecords(fqdn, ip, record, dnsRecordsResponse.Result)
 
 		// Handle record addition or update
 		if identifier == "" {
@@ -264,9 +259,30 @@ func (d *CfDDns) Run() bool {
 
 		// Purge stale records if enabled
 		if d.config.PurgeUnknownRecords {
-			d.deleteStaleRecords(duplicateIds)
+			duplicateIds := d.GetUnknownRecords(dnsRecordsResponse, zone)
+			if len(duplicateIds) > 0 {
+				d.deleteStaleRecords(duplicateIds)
+			}
 		}
 	}
 
 	return true
+}
+
+func (d *CfDDns) GetUnknownRecords(dnsRecordsResponse *DnsRecords, zone *ZoneResult) []string {
+	var unknownIds []string
+	for _, result := range dnsRecordsResponse.Result {
+		var exists bool
+		for _, subdomain := range d.config.Subdomains {
+			fqdn := d.GetFullDomain(subdomain.Name, zone)
+			if result.Name == fqdn {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			unknownIds = append(unknownIds, result.Id)
+		}
+	}
+	return unknownIds
 }

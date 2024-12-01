@@ -25,7 +25,7 @@ func (suite *DDnsSuite) TestFetchIp() {
 
 func (suite *DDnsSuite) TestGetExistingRecords() {
 	records := suite.Api.GetExistingRecords()
-	suite.Equal("example.com", records.Result[0].Name)
+	suite.Equal("admin.example.com", records.Result[0].Name)
 	suite.Equal("www.example.com", records.Result[1].Name)
 }
 func (suite *DDnsSuite) TestGetZone() {
@@ -35,9 +35,11 @@ func (suite *DDnsSuite) TestGetZone() {
 
 func (suite *DDnsSuite) TestUpdates() {
 
-	ip := "192.168.1.1"
-	zone := suite.Api.GetZone()
-	records := suite.Api.GetExistingRecords()
+	var (
+		ip      = "192.168.1.1"
+		zone    = suite.Api.GetZone()
+		records = suite.Api.GetExistingRecords()
+	)
 	for _, subdomain := range suite.Api.Config().Subdomains {
 		fqdn := suite.Api.GetFullDomain(subdomain.Name, zone)
 
@@ -50,19 +52,18 @@ func (suite *DDnsSuite) TestUpdates() {
 		}
 
 		if subdomain.Name == "www" {
-			identifier, modified, duplicateIds := suite.Api.FindMatchingRecords(fqdn, ip, record, records.Result)
+			identifier, modified := suite.Api.FindMatchingRecords(fqdn, ip, record, records.Result)
 			suite.True(modified)
 			suite.Equal("2", identifier)
-			suite.Equal(0, len(duplicateIds))
 		}
 		if subdomain.Name == "admin" {
-			identifier, modified, duplicateIds := suite.Api.FindMatchingRecords(fqdn, ip, record, records.Result)
+			identifier, modified := suite.Api.FindMatchingRecords(fqdn, ip, record, records.Result)
 			suite.False(modified)
-			suite.Equal("", identifier)
-			suite.Equal(0, len(duplicateIds))
+			suite.Equal("1", identifier)
 		}
-		//suite.Equal("example.com", records.Result.Name)
 	}
+	unknownIds := suite.Api.GetUnknownRecords(records, zone)
+	suite.Equal(1, len(unknownIds))
 }
 
 func (suite *DDnsSuite) SetupTest() {
@@ -101,10 +102,10 @@ func (suite *DDnsSuite) SetupTest() {
 		dnsResults := &DnsRecords{
 			Result: []DnsResult{
 				{
-					Name:      "example.com",
+					Name:      "admin.example.com",
 					Proxied:   true,
-					Ttl:       3600,
-					Content:   "192.168.1.2",
+					Ttl:       300,
+					Content:   "192.168.1.1",
 					Type:      "A",
 					Id:        "1",
 					Proxiable: true,
